@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpeakMate AI — Conversational English Coach</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+
+  <!-- Top Navbar -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-lg">S</div>
+      <div>
+        <h1 class="font-semibold text-lg leading-tight">SpeakMate AI</h1>
+        <p class="text-xs text-slate-400">Real-Time Spoken English Partner & Shadow Coach</p>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <select id="scenarioSelect" class="bg-slate-800 border border-slate-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500">
+        <option value="casual">Mode: Daily Casual Chat</option>
+        <option value="hr_interview">Mode: HR Mock Interview</option>
+        <option value="tech_pitch">Mode: Tech / Project Pitch</option>
+        <option value="debate">Mode: Debate & Opinions</option>
+      </select>
+
+      <select id="voiceSelect" class="bg-slate-800 border border-slate-700 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-500">
+        <option value="en-IN-NeerjaNeural">Voice: Neerja (Indian English)</option>
+        <option value="en-IN-PrabhatNeural">Voice: Prabhat (Indian English)</option>
+        <option value="en-US-AriaNeural">Voice: Aria (US English)</option>
+        <option value="en-GB-SoniaNeural">Voice: Sonia (UK English)</option>
+      </select>
+
+      <button onclick="startSession()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+        New Session
+      </button>
+
+      <button id="reportBtn" disabled onclick="openReport()" class="disabled:opacity-40 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 text-sm font-medium px-4 py-2 rounded-lg transition">
+        Finish & Report
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Split Layout -->
+  <main class="flex-1 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 p-6">
+
+    <!-- Left Column: Live Conversation -->
+    <section class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col h-[78vh]">
+      <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between gap-2">
+        <span class="text-sm font-medium text-slate-300">Live Conversation</span>
+        <div class="flex items-center gap-3">
+          <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer select-none">
+            <input type="checkbox" id="handsFreeToggle" class="accent-emerald-500 w-3.5 h-3.5" />
+            <span>Hands-Free Auto-Send</span>
+          </label>
+          <span id="statusBadge" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400">Click "New Session"</span>
+        </div>
+      </div>
+
+      <div id="chatBox" class="flex-1 overflow-y-auto p-5 space-y-4">
+        <div class="text-center text-slate-500 text-sm mt-20">
+          Pick a conversation mode above and click <strong class="text-slate-300">New Session</strong>.<br/>
+          Enable <strong class="text-emerald-400">Hands-Free Auto-Send</strong> for natural call-like flow!
+        </div>
+      </div>
+
+      <!-- Hint Box -->
+      <div id="hintBox" class="hidden mx-4 mb-3 p-3.5 rounded-xl bg-amber-950/40 border border-amber-700/50 text-xs space-y-2">
+        <div class="flex items-center justify-between text-amber-300 font-semibold">
+          <span>💡 Suggested Ways to Answer (Read one aloud!):</span>
+          <button onclick="document.getElementById('hintBox').classList.add('hidden')" class="text-slate-400 hover:text-white">✕</button>
+        </div>
+        <div id="hintContent" class="space-y-1.5 text-slate-200">Loading ideas...</div>
+      </div>
+
+      <!-- Mic & Hint Controls -->
+      <div class="p-4 border-t border-slate-800 bg-slate-900/90 rounded-b-2xl flex flex-wrap items-center justify-center gap-3">
+        <button id="micBtn" disabled onclick="toggleRecording()"
+          class="disabled:opacity-40 disabled:cursor-not-allowed bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-6 py-3 rounded-full flex items-center gap-2.5 shadow-lg transition">
+          <span id="micDot" class="w-3 h-3 rounded-full bg-white"></span>
+          <span id="micLabel">Start Speaking</span>
+        </button>
+
+        <button id="hintBtn" disabled onclick="fetchHint()"
+          class="disabled:opacity-40 disabled:cursor-not-allowed bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 text-sm font-medium px-4 py-3 rounded-full transition">
+          💡 Help Me Answer
+        </button>
+      </div>
+    </section>
+
+    <!-- Right Column: Shadow Coach & Fluency Metrics -->
+    <section class="lg:col-span-5 flex flex-col gap-6 h-[78vh]">
+
+      <!-- Live Metrics Bar -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <p class="text-xs text-slate-400">Speaking Pace</p>
+          <p id="wpmStat" class="text-2xl font-bold text-indigo-400 mt-1">-- <span class="text-xs font-normal text-slate-400">WPM</span></p>
+          <p class="text-[11px] text-slate-500 mt-0.5">Ideal: 120–150 WPM</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <p class="text-xs text-slate-400">Turns Spoken</p>
+          <p id="turnsStat" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
+          <p class="text-[11px] text-slate-500 mt-0.5">Saved to history</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <p class="text-xs text-slate-400">Filler Words</p>
+          <p id="fillerStat" class="text-sm font-semibold text-amber-400 mt-2 truncate">None detected</p>
+        </div>
+      </div>
+
+      <!-- Coach Feedback Feed -->
+      <div class="flex-1 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden">
+        <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+          <span class="text-sm font-medium text-amber-300">Shadow Coach Feedback</span>
+          <span class="text-xs text-slate-400">Phrasing & Pronunciation</span>
+        </div>
+        <div id="coachBox" class="flex-1 overflow-y-auto p-5 space-y-4">
+          <div class="text-slate-500 text-sm text-center mt-16">
+            Your grammar refinements, pronunciation checks, and vocabulary upgrades will appear here after each turn.
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- Report Card Modal -->
+  <div id="reportModal" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h2 class="text-lg font-bold text-white">📊 Session Fluency Report Card</h2>
+        <button onclick="document.getElementById('reportModal').classList.add('hidden')" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+      <div id="reportBody" class="space-y-4 text-sm text-slate-200">
+        Generating your personalized report...
+      </div>
+      <div class="pt-2 flex justify-end">
+        <button onclick="document.getElementById('reportModal').classList.add('hidden')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg text-sm font-medium">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <audio id="audioPlayer" class="hidden"></audio>
+
+  <script>
+    let sessionId = crypto.randomUUID();
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    let recordStartTime = 0;
+    let turnCount = 0;
+    let audioCtx = null;
+    let silenceTimer = null;
+    let hasSpokenInTurn = false;
+
+    const chatBox = document.getElementById("chatBox");
+    const coachBox = document.getElementById("coachBox");
+    const micBtn = document.getElementById("micBtn");
+    const hintBtn = document.getElementById("hintBtn");
+    const reportBtn = document.getElementById("reportBtn");
+    const micLabel = document.getElementById("micLabel");
+    const micDot = document.getElementById("micDot");
+    const statusBadge = document.getElementById("statusBadge");
+    const audioPlayer = document.getElementById("audioPlayer");
+    const handsFreeToggle = document.getElementById("handsFreeToggle");
+
+    function playBase64Audio(b64, autoListenAfter = false) {
+      audioPlayer.src = "data:audio/mp3;base64," + b64;
+      audioPlayer.onended = () => {
+        if (autoListenAfter && handsFreeToggle.checked && !isRecording) {
+          startRecording();
+        }
+      };
+      audioPlayer.play();
+    }
+
+    async function pronounceText(text) {
+      const formData = new FormData();
+      formData.append("text", text);
+      formData.append("voice", document.getElementById("voiceSelect").value);
+      const res = await fetch("/api/pronounce", { method: "POST", body: formData });
+      const data = await res.json();
+      playBase64Audio(data.audio_base64, false);
+    }
+
+    function appendMessage(sender, text) {
+      const isUser = sender === "user";
+      const wrapper = document.createElement("div");
+      wrapper.className = `flex ${isUser ? "justify-end" : "justify-start"}`;
+      wrapper.innerHTML = `
+        <div class="max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+          isUser
+            ? "bg-indigo-600 text-white rounded-br-sm"
+            : "bg-slate-800 text-slate-100 border border-slate-700 rounded-bl-sm"
+        }">
+          <div class="text-[11px] opacity-70 mb-1 font-medium">${isUser ? "You" : "SpeakMate AI"}</div>
+          <div>${text}</div>
+        </div>
+      `;
+      chatBox.appendChild(wrapper);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function appendCoachCard(userText, correction, tip, vocab, unclearWords) {
+      if (turnCount === 1) coachBox.innerHTML = "";
+      const isNatural = correction.toLowerCase().includes("sounds natural");
+      const safeCorrection = correction.replace(/'/g, "\\'");
+
+      const unclearHtml = (unclearWords && unclearWords.length > 0)
+        ? `<div class="text-xs text-rose-300 flex flex-wrap items-center gap-1.5 pt-1">
+             <span>🗣️ Clarity Check (click to hear):</span>
+             ${unclearWords.map(w => `<button onclick="pronounceText('${w.replace(/'/g, "\\'")}')" class="px-2 py-0.5 rounded bg-rose-950 border border-rose-700 hover:bg-rose-900">🔊 ${w}</button>`).join("")}
+           </div>`
+        : "";
+
+      const card = document.createElement("div");
+      card.className = "bg-slate-800/70 border border-slate-700 rounded-xl p-4 space-y-2 text-sm";
+      card.innerHTML = `
+        <div class="text-xs text-slate-400">You said: <span class="italic text-slate-300">"${userText}"</span></div>
+        <div class="flex items-start justify-between gap-2">
+          <div class="font-medium ${isNatural ? "text-emerald-400" : "text-amber-300"}">
+            ${isNatural ? "✓ " + correction : "✨ Better: " + correction}
+          </div>
+          ${!isNatural ? `<button onclick="pronounceText('${safeCorrection}')" title="Hear natural pronunciation" class="shrink-0 text-xs px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-200">🔊 Shadow</button>` : ""}
+        </div>
+        ${tip ? `<div class="text-xs text-slate-300 bg-slate-900/70 p-2 rounded-lg">💡 ${tip}</div>` : ""}
+        ${vocab ? `<div class="text-xs text-indigo-300">📚 Vocab Boost: ${vocab}</div>` : ""}
+        ${unclearHtml}
+      `;
+      coachBox.prepend(card);
+    }
+
+    async function startSession() {
+      sessionId = crypto.randomUUID();
+      turnCount = 0;
+      document.getElementById("turnsStat").textContent = "0";
+      document.getElementById("wpmStat").innerHTML = `-- <span class="text-xs font-normal text-slate-400">WPM</span>`;
+      document.getElementById("fillerStat").textContent = "None detected";
+      document.getElementById("hintBox").classList.add("hidden");
+
+      chatBox.innerHTML = "";
+      coachBox.innerHTML = `<div class="text-slate-500 text-sm text-center mt-16">Speak your first sentence to receive live coaching!</div>`;
+      statusBadge.textContent = "Starting session...";
+
+      const formData = new FormData();
+      formData.append("session_id", sessionId);
+      formData.append("scenario", document.getElementById("scenarioSelect").value);
+      formData.append("voice", document.getElementById("voiceSelect").value);
+
+      const res = await fetch("/api/start", { method: "POST", body: formData });
+      const data = await res.json();
+
+      appendMessage("ai", data.reply);
+      playBase64Audio(data.audio_base64, true);
+
+      micBtn.disabled = false;
+      hintBtn.disabled = false;
+      reportBtn.disabled = false;
+      statusBadge.textContent = "Ready — Click Start Speaking";
+    }
+
+    async function fetchHint() {
+      const hintBox = document.getElementById("hintBox");
+      const hintContent = document.getElementById("hintContent");
+      hintBox.classList.remove("hidden");
+      hintContent.innerHTML = `<span class="text-slate-400">Thinking of natural ways to reply...</span>`;
+
+      const formData = new FormData();
+      formData.append("session_id", sessionId);
+
+      const res = await fetch("/api/hint", { method: "POST", body: formData });
+      const data = await res.json();
+
+      hintContent.innerHTML = `
+        <div class="p-2 rounded bg-slate-900/80"><strong class="text-emerald-400">Simple:</strong> "${data.simple}"</div>
+        <div class="p-2 rounded bg-slate-900/80"><strong class="text-indigo-400">Expressive:</strong> "${data.advanced}"</div>
+      `;
+    }
+
+    async function openReport() {
+      const modal = document.getElementById("reportModal");
+      const body = document.getElementById("reportBody");
+      modal.classList.remove("hidden");
+      body.innerHTML = `<div class="text-center py-6 text-slate-400">Analyzing your speaking session...</div>`;
+
+      const formData = new FormData();
+      formData.append("session_id", sessionId);
+
+      const res = await fetch("/api/report", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (data.error) {
+        body.innerHTML = `<div class="text-amber-400">${data.error}</div>`;
+        return;
+      }
+
+      body.innerHTML = `
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div class="bg-slate-800 p-3 rounded-xl">
+            <div class="text-xs text-slate-400">Fluency Score</div>
+            <div class="text-2xl font-bold text-emerald-400">${data.fluency_score}/100</div>
+          </div>
+          <div class="bg-slate-800 p-3 rounded-xl">
+            <div class="text-xs text-slate-400">Session Pace</div>
+            <div class="text-2xl font-bold text-indigo-400">${data.avg_wpm} <span class="text-xs">WPM</span></div>
+          </div>
+          <div class="bg-slate-800 p-3 rounded-xl">
+            <div class="text-xs text-slate-400">Lifetime Turns</div>
+            <div class="text-2xl font-bold text-amber-400">${data.lifetime_turns}</div>
+          </div>
+        </div>
+        <div class="bg-slate-800/70 p-3.5 rounded-xl space-y-1">
+          <div class="text-xs font-semibold text-emerald-400">🌟 Key Strength</div>
+          <div>${data.strength}</div>
+        </div>
+        <div class="bg-slate-800/70 p-3.5 rounded-xl space-y-1">
+          <div class="text-xs font-semibold text-amber-300">🎯 #1 Pattern to Improve</div>
+          <div>${data.main_pattern_to_fix}</div>
+        </div>
+        <div class="bg-indigo-950/50 border border-indigo-800/60 p-3.5 rounded-xl space-y-1">
+          <div class="text-xs font-semibold text-indigo-300">🚀 Tomorrow's 5-Min Practice Goal</div>
+          <div>${data.tomorrow_goal}</div>
+        </div>
+      `;
+    }
+
+    function monitorSilence(stream) {
+      audioCtx = new AudioContext();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      hasSpokenInTurn = false;
+
+      const checkVolume = () => {
+        if (!isRecording) return;
+        analyser.getByteFrequencyData(dataArray);
+        const avgVolume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+
+        if (avgVolume > 18) {
+          hasSpokenInTurn = true;
+          clearTimeout(silenceTimer);
+          silenceTimer = null;
+        } else if (hasSpokenInTurn && handsFreeToggle.checked && !silenceTimer) {
+          silenceTimer = setTimeout(() => {
+            if (isRecording) stopRecording();
+          }, 1600);
+        }
+        requestAnimationFrame(checkVolume);
+      };
+      checkVolume();
+    }
+
+    async function startRecording() {
+      if (isRecording) return;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (audioCtx) { audioCtx.close(); audioCtx = null; }
+        clearTimeout(silenceTimer);
+        const durationSec = (Date.now() - recordStartTime) / 1000;
+        const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+        await sendAudioToServer(audioBlob, durationSec);
+      };
+
+      mediaRecorder.start();
+      recordStartTime = Date.now();
+      isRecording = true;
+      monitorSilence(stream);
+
+      micBtn.classList.remove("bg-emerald-600", "hover:bg-emerald-500");
+      micBtn.classList.add("bg-rose-600", "hover:bg-rose-500");
+      micDot.classList.add("animate-ping");
+      micLabel.textContent = handsFreeToggle.checked ? "Listening (Auto-Send)..." : "Stop & Send";
+      statusBadge.textContent = "Listening...";
+    }
+
+    function stopRecording() {
+      if (!isRecording || !mediaRecorder) return;
+      mediaRecorder.stop();
+      isRecording = false;
+
+      micBtn.disabled = true;
+      micBtn.classList.remove("bg-rose-600", "hover:bg-rose-500");
+      micBtn.classList.add("bg-emerald-600", "hover:bg-emerald-500");
+      micDot.classList.remove("animate-ping");
+      micLabel.textContent = "Processing...";
+      statusBadge.textContent = "Analyzing speech...";
+    }
+
+    async function toggleRecording() {
+      if (!isRecording) {
+        await startRecording();
+      } else {
+        stopRecording();
+      }
+    }
+
+    async function sendAudioToServer(blob, durationSec) {
+      const formData = new FormData();
+      formData.append("audio", blob, "speech.webm");
+      formData.append("session_id", sessionId);
+      formData.append("scenario", document.getElementById("scenarioSelect").value);
+      formData.append("voice", document.getElementById("voiceSelect").value);
+      formData.append("duration_sec", durationSec.toFixed(2));
+
+      try {
+        const res = await fetch("/api/turn", { method: "POST", body: formData });
+        const data = await res.json();
+
+        if (data.error) {
+          statusBadge.textContent = data.error;
+        } else {
+          turnCount++;
+          document.getElementById("hintBox").classList.add("hidden");
+          appendMessage("user", data.user_text);
+          appendMessage("ai", data.reply);
+          appendCoachCard(
+            data.user_text,
+            data.correction,
+            data.tip,
+            data.vocabulary_upgrade,
+            data.unclear_words
+          );
+
+          document.getElementById("turnsStat").textContent = turnCount;
+          document.getElementById("wpmStat").innerHTML = `${data.fluency.wpm} <span class="text-xs font-normal text-slate-400">WPM</span>`;
+          document.getElementById("fillerStat").textContent =
+            data.fluency.fillers.length > 0 ? data.fluency.fillers.join(", ") : "Clean (0 fillers)";
+
+          playBase64Audio(data.audio_base64, true);
+          statusBadge.textContent = "Your turn";
+        }
+      } catch (err) {
+        statusBadge.textContent = "Network error. Check server console.";
+      } finally {
+        micBtn.disabled = false;
+        micLabel.textContent = "Start Speaking";
+      }
+    }
+  </script>
+</body>
+</html>
